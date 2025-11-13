@@ -31,20 +31,69 @@ export function QuestionProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error("[QuestionProvider] Failed to parse stored questions", error)
-    } finally {
-      setHydrated(true)
+    }
+    setHydrated(true)
+
+    let active = true
+    const controller = new AbortController()
+
+    const fetchFromFile = async () => {
+      try {
+        const response = await fetch("/api/custom-questions", {
+          cache: "no-store",
+          signal: controller.signal,
+        })
+        if (!response.ok) {
+          throw new Error(`Failed to fetch custom questions: ${response.status}`)
+        }
+        const data = (await response.json()) as Question[]
+        if (active) {
+          setCustomQuestions(data)
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+        }
+      } catch (error) {
+        if ((error as Error)?.name === "AbortError") return
+        console.error("[QuestionProvider] Failed to fetch stored questions from file", error)
+      }
+    }
+
+    fetchFromFile()
+
+    return () => {
+      active = false
+      controller.abort()
     }
   }, [])
 
-  const persist = useCallback((updater: (prev: Question[]) => Question[]) => {
-    setCustomQuestions((prev) => {
-      const next = updater(prev)
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-      }
-      return next
-    })
+  const syncQuestionsToFile = useCallback(async (questions: Question[]) => {
+    try {
+      await fetch("/api/custom-questions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ questions }),
+      })
+    } catch (error) {
+      console.error("[QuestionProvider] Failed to sync questions to file", error)
+    }
   }, [])
+
+  const persist = useCallback(
+    (updater: (prev: Question[]) => Question[]) => {
+      setCustomQuestions((prev) => {
+        const next = updater(prev)
+        if (typeof window !== "undefined") {
+          try {
+            window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+          } catch (error) {
+            console.error("[QuestionProvider] Failed to store questions locally", error)
+          }
+        }
+        void syncQuestionsToFile(next)
+        return next
+      })
+    },
+    [syncQuestionsToFile],
+  )
 
   const upsertQuestion = useCallback(
     (question: Question) => {

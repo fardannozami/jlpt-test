@@ -88,6 +88,14 @@ const getNextOptionId = (options: OptionFormState[]) => {
   return `opt-${Date.now()}`
 }
 
+const readFileAsDataUrl = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = () => reject(reader.error ?? new Error("Gagal membaca file."))
+    reader.readAsDataURL(file)
+  })
+
 export default function AdminDashboardPage() {
   const { questions, customQuestions, loading, upsertQuestion, deleteQuestion, generateQuestionId } = useQuestionBank()
   const [formState, setFormState] = useState<QuestionFormState>(createDefaultFormState())
@@ -132,10 +140,57 @@ export default function AdminDashboardPage() {
         return {
           ...opt,
           answerType: nextType,
+          text: nextType === "text" ? opt.text : "",
+          imageUrl: nextType === "image" ? opt.imageUrl : "",
+          imageAlt: nextType === "image" ? opt.imageAlt : "",
         }
       })
       return { ...prev, options: updatedOptions }
     })
+  }
+
+  const handlePromptImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    try {
+      const dataUrl = await readFileAsDataUrl(file)
+      setFormState((prev) => ({
+        ...prev,
+        promptMediaUrl: dataUrl,
+        promptMediaAlt: prev.promptMediaAlt || file.name,
+      }))
+    } catch (error) {
+      console.error("[AdminDashboard] Failed to read prompt image file", error)
+      setStatusMessage({ type: "error", text: "Gagal membaca file gambar pertanyaan. Coba ulangi." })
+    } finally {
+      event.target.value = ""
+    }
+  }
+
+  const handleOptionImageUpload = async (index: number, event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    try {
+      const dataUrl = await readFileAsDataUrl(file)
+      setFormState((prev) => {
+        const updatedOptions = prev.options.map((opt, optIndex) => {
+          if (optIndex !== index) return opt
+          return {
+            ...opt,
+            answerType: "image",
+            text: "",
+            imageUrl: dataUrl,
+            imageAlt: opt.imageAlt || file.name,
+          }
+        })
+        return { ...prev, options: updatedOptions }
+      })
+    } catch (error) {
+      console.error("[AdminDashboard] Failed to read option image file", error)
+      setStatusMessage({ type: "error", text: "Gagal membaca file gambar jawaban. Coba ulangi." })
+    } finally {
+      event.target.value = ""
+    }
   }
 
   const handleRemoveOption = (optionId: string) => {
@@ -396,18 +451,34 @@ export default function AdminDashboardPage() {
                         id="mediaUrl"
                         value={formState.promptMediaUrl}
                         onChange={(event) => setFormState((prev) => ({ ...prev, promptMediaUrl: event.target.value }))}
-                        placeholder="https://contoh.com/media.mp3"
+                        placeholder={formState.promptType === "audio" ? "https://contoh.com/audio.mp3" : "https://contoh.com/gambar.png"}
                       />
                       {formState.promptType === "image" && (
-                        <div className="grid gap-2">
-                          <Label htmlFor="mediaAlt">Deskripsi Alt Gambar</Label>
-                          <Input
-                            id="mediaAlt"
-                            value={formState.promptMediaAlt}
-                            onChange={(event) => setFormState((prev) => ({ ...prev, promptMediaAlt: event.target.value }))}
-                            placeholder="Contoh: Dua orang sedang berbicara"
-                          />
-                        </div>
+                        <>
+                          <div className="grid gap-2">
+                            <Label htmlFor="mediaUpload">Unggah Gambar (opsional)</Label>
+                            <Input
+                              id="mediaUpload"
+                              type="file"
+                              accept="image/*"
+                              onChange={handlePromptImageUpload}
+                            />
+                            <p className="text-xs text-slate-500">
+                              File akan dikonversi ke Data URL dan disimpan di browser Anda.
+                            </p>
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="mediaAlt">Deskripsi Alt Gambar</Label>
+                            <Input
+                              id="mediaAlt"
+                              value={formState.promptMediaAlt}
+                              onChange={(event) =>
+                                setFormState((prev) => ({ ...prev, promptMediaAlt: event.target.value }))
+                              }
+                              placeholder="Contoh: Dua orang sedang berbicara"
+                            />
+                          </div>
+                        </>
                       )}
                     </div>
                   )}
@@ -505,6 +576,17 @@ export default function AdminDashboardPage() {
                                 onChange={(event) => updateOptionField(index, "imageUrl", event.target.value)}
                                 placeholder="https://contoh.com/gambar.png"
                               />
+                            </div>
+                            <div className="mt-3 grid gap-2">
+                              <Label>Unggah File Gambar</Label>
+                              <Input
+                                type="file"
+                                accept="image/*"
+                                onChange={(event) => handleOptionImageUpload(index, event)}
+                              />
+                              <p className="text-xs text-slate-500">
+                                File diubah menjadi Data URL sehingga bisa langsung digunakan pada soal.
+                              </p>
                             </div>
                             <div className="mt-3 grid gap-2">
                               <Label>Deskripsi Alt Gambar</Label>
