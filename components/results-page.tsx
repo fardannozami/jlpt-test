@@ -5,11 +5,12 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { CheckCircle, XCircle, Home } from "lucide-react"
+import type { Option, Question } from "@/lib/questions"
 
 interface ResultsPageProps {
   section: string
   answers: { [key: number]: string }
-  questions: any[]
+  questions: Question[]
   onRestart: () => void
 }
 
@@ -38,8 +39,52 @@ export default function ResultsPage({ section, answers, questions, onRestart }: 
     return titles[section] || section
   }
 
+  const renderPromptMedia = (question: Question) => {
+    if (!question.promptMediaUrl) return null
+    if (question.promptType === "image") {
+      return (
+        <img
+          src={question.promptMediaUrl}
+          alt={question.promptMediaAlt || "Gambar pertanyaan"}
+          className="mt-3 max-h-60 w-full rounded-lg border border-slate-200 object-contain p-2"
+          loading="lazy"
+        />
+      )
+    }
+    if (question.promptType === "audio") {
+      return (
+        <audio controls className="mt-3 w-full">
+          <source src={question.promptMediaUrl} />
+          Browser anda tidak mendukung pemutar audio.
+        </audio>
+      )
+    }
+    return null
+  }
+
+  const renderOptionPreview = (option?: Option) => {
+    if (!option) {
+      return <span className="text-sm italic text-slate-500">Tidak menjawab</span>
+    }
+
+    return (
+      <div className="mt-1 flex flex-col gap-2 text-sm text-slate-600">
+        {option.text && <span className="text-base text-slate-700">{option.text}</span>}
+        {option.imageUrl && (
+          <img
+            src={option.imageUrl}
+            alt={option.imageAlt || "Pilihan jawaban"}
+            className="max-h-32 w-full rounded-lg border border-slate-200 object-contain p-2"
+            loading="lazy"
+          />
+        )}
+        {!option.text && !option.imageUrl && <span className="text-xs text-slate-500">Tanpa konten</span>}
+      </div>
+    )
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 text-slate-900 p-4 md:p-8">
+    <div className="min-h-screen bg-linear-to-br from-blue-50 via-white to-blue-50 text-slate-900 p-4 md:p-8">
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="text-center mb-12">
@@ -72,33 +117,38 @@ export default function ResultsPage({ section, answers, questions, onRestart }: 
           <CardContent className="space-y-4">
             {questions.map((q, index) => {
               const isCorrect = answers[index] === q.correctAnswer
+              const selectedOption = q.options.find((opt) => opt.id === answers[index])
+              const correctOption = q.options.find((opt) => opt.id === q.correctAnswer)
               return (
                 <div key={index} className="p-4 rounded-lg bg-slate-50 border border-slate-200">
                   <div className="flex items-start gap-3 mb-2">
                     {isCorrect ? (
-                      <CheckCircle className="w-5 h-5 text-green-600 mt-1 flex-shrink-0" />
+                      <CheckCircle className="w-5 h-5 text-green-600 mt-1 shrink-0" />
                     ) : (
-                      <XCircle className="w-5 h-5 text-red-600 mt-1 flex-shrink-0" />
+                      <XCircle className="w-5 h-5 text-red-600 mt-1 shrink-0" />
                     )}
                     <div className="flex-1">
                       <p className="font-semibold text-slate-900 mb-2">
-                        Soal {index + 1}: {q.question}
+                        Soal {index + 1}: {q.question || "Pertanyaan media"}
                       </p>
-                      <p className="text-slate-600 text-sm mb-2">
-                        <span className={isCorrect ? "text-green-600" : "text-red-600"}>{isCorrect ? "✓" : "✗"}</span>{" "}
-                        Jawaban Anda: {q.options.find((opt) => opt.id === answers[index])?.text}
-                      </p>
-                      {!isCorrect && (
-                        <p className="text-slate-600 text-sm">
-                          <span className="text-green-600">✓</span> Jawaban Benar:{" "}
-                          {q.options.find((opt) => opt.id === q.correctAnswer)?.text}
-                        </p>
-                      )}
-                      {q.explanation && (
-                        <p className="text-slate-500 text-sm mt-2 italic">Penjelasan: {q.explanation}</p>
-                      )}
+                      {renderPromptMedia(q)}
                     </div>
                   </div>
+                  <div className="mt-3 space-y-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Jawaban Anda</p>
+                      <div className={isCorrect ? "text-green-700" : "text-red-700"}>{renderOptionPreview(selectedOption)}</div>
+                    </div>
+                    {!isCorrect && (
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-green-600">Jawaban Benar</p>
+                        <div className="text-green-700">{renderOptionPreview(correctOption)}</div>
+                      </div>
+                    )}
+                  </div>
+                  {q.explanation && (
+                    <p className="text-slate-500 text-sm mt-2 italic">Penjelasan: {q.explanation}</p>
+                  )}
                 </div>
               )
             })}

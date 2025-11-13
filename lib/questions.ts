@@ -1,17 +1,25 @@
 // N5 JLPT Practice Questions Database
 
+export type QuestionSection = "vocabulary" | "grammar" | "reading" | "listening"
+export type QuestionPromptType = "text" | "image" | "audio"
+
 export interface Option {
   id: string
-  text: string
+  text?: string
+  imageUrl?: string
+  imageAlt?: string
 }
 
 export interface Question {
   id: number
-  section: "vocabulary" | "grammar" | "reading" | "listening"
+  section: QuestionSection
   question: string
   options: Option[]
   correctAnswer: string
   explanation?: string
+  promptType?: QuestionPromptType
+  promptMediaUrl?: string
+  promptMediaAlt?: string
 }
 
 export const questions: Question[] = [
@@ -679,18 +687,13 @@ export const questions: Question[] = [
 ]
 
 // Utility functions to shuffle questions and answer options
-function shuffleArray<T>(array: T[]): T[] {
+export function shuffleArray<T>(array: T[]): T[] {
   const shuffled = [...array]
   for (let i = shuffled.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1))
     ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
   }
   return shuffled
-}
-
-export function getShuffledQuestions(sectionFilter: string): Question[] {
-  const filtered = questions.filter((q) => q.section === sectionFilter)
-  return shuffleArray(filtered)
 }
 
 export function getShuffledOptions(question: Question): Option[] {

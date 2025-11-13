@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -23,8 +24,13 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 text-slate-900 p-4 md:p-8">
+    <div className="min-h-screen bg-linear-to-br from-blue-50 via-white to-blue-50 text-slate-900 p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
+        <div className="mb-6 flex justify-end">
+          <Button asChild variant="outline" className="bg-white text-slate-900">
+            <Link href="/admin">Dashboard Admin</Link>
+          </Button>
+        </div>
         {/* Header */}
         <div className="mb-12 text-center">
           <h1 className="text-4xl md:text-5xl font-bold mb-4 text-pretty">JLPT N5 Practice Test</h1>
